@@ -7,7 +7,12 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.servicediscovery.ServiceDiscovery;
+import net.sf.jsqlparser.JSQLParserException;
+import net.sf.jsqlparser.parser.CCJSqlParserManager;
+import net.sf.jsqlparser.statement.Statement;
+import net.sf.jsqlparser.statement.select.Select;
 
+import java.io.StringReader;
 import java.util.Collections;
 
 import static io.nubespark.utils.response.ResponseUtils.CONTENT_TYPE;
@@ -78,24 +83,27 @@ public class RulesController {
     }
 
     public void getFiloData(RoutingContext routingContext) {
-        routingContext.request().bodyHandler((body) -> {
+        routingContext.request().bodyHandler(body -> {
             JsonObject jsonObject = new JsonObject(body);
             String query = jsonObject.getString("query");
             JsonObject queryObj = new JsonObject();
-//        Boolean isReadQuery = SQLFilter.isReadType(query);
-//        if (isReadQuery) {
-            queryObj.put("query", query);
-//            queryObj.put("params", new JsonArray(Collections.singletonList("m:")));
-//        }
+            Statement statement = null;
+            CCJSqlParserManager ccjSqlParserManager = new CCJSqlParserManager();
+            try {
+                statement = ccjSqlParserManager.parse(new StringReader(query));
+            } catch (JSQLParserException e) {
+                e.printStackTrace();
+            }
+            if (statement instanceof Select) {
+                System.out.println("Query Type Passed:");
+                queryObj.put("query", query);
+            }
             vertx.eventBus().send("io.nubespark.jdbc.engine", queryObj, message -> {
                 JsonObject replyJson = new JsonObject()
                         .put("controller", "rules")
                         .put("action", "getFiloData")
                         .put("desc", "Read data from filodb")
                         .put("query", query);
-//            if (!isReadQuery) {
-//                replyJson.put("access", Constants.ACCESS_DENIED);
-//            }
                 if (message.succeeded()) {
                     Object reply = message.result().body();
                     if (reply != null) {
