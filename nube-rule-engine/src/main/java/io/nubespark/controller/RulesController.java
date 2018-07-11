@@ -7,8 +7,6 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.servicediscovery.ServiceDiscovery;
-import utilities.constants.Constants;
-import utilities.filters.SQLFilter;
 
 import java.util.Collections;
 
@@ -80,37 +78,38 @@ public class RulesController {
     }
 
     public void getFiloData(RoutingContext routingContext) {
-        HttpServerRequest request = routingContext.request();
-        String query = request.getParam("query");
-        System.out.println("This is params" + query);
-        JsonObject queryObj = new JsonObject();
-        Boolean isReadQuery = SQLFilter.isReadType(query);
-        if (isReadQuery) {
+        routingContext.request().bodyHandler((body) -> {
+            JsonObject jsonObject = new JsonObject(body);
+            String query = jsonObject.getString("query");
+            JsonObject queryObj = new JsonObject();
+//        Boolean isReadQuery = SQLFilter.isReadType(query);
+//        if (isReadQuery) {
             queryObj.put("query", query);
-            queryObj.put("params", new JsonArray(Collections.singletonList("m:")));
-        }
-        vertx.eventBus().send("io.nubespark.jdbc.engine", queryObj, message -> {
-            JsonObject replyJson = new JsonObject()
-                    .put("controller", "rules")
-                    .put("action", "getFiloData")
-                    .put("desc", "Read data from filodb")
-                    .put("query", query);
-            if (!isReadQuery) {
-                replyJson.put("access", Constants.ACCESS_DENIED);
-            }
-            if (message.succeeded()) {
-                Object reply = message.result().body();
-                if (reply != null && isReadQuery) {
-                    replyJson.put("resultSet", reply);
+//            queryObj.put("params", new JsonArray(Collections.singletonList("m:")));
+//        }
+            vertx.eventBus().send("io.nubespark.jdbc.engine", queryObj, message -> {
+                JsonObject replyJson = new JsonObject()
+                        .put("controller", "rules")
+                        .put("action", "getFiloData")
+                        .put("desc", "Read data from filodb")
+                        .put("query", query);
+//            if (!isReadQuery) {
+//                replyJson.put("access", Constants.ACCESS_DENIED);
+//            }
+                if (message.succeeded()) {
+                    Object reply = message.result().body();
+                    if (reply != null) {
+                        replyJson.put("resultSet", reply);
+                    }
+                } else {
+                    message.cause().printStackTrace();
+                    System.out.println(message.cause().getLocalizedMessage());
+                    System.out.println("Failed to receive reply...");
                 }
-            } else {
-                message.cause().printStackTrace();
-                System.out.println(message.cause().getLocalizedMessage());
-                System.out.println("Failed to receive reply...");
-            }
-            routingContext.response()
-                    .putHeader(CONTENT_TYPE, CONTENT_TYPE_JSON)
-                    .end(Json.encodePrettily(replyJson));
+                routingContext.response()
+                        .putHeader(CONTENT_TYPE, CONTENT_TYPE_JSON)
+                        .end(Json.encodePrettily(replyJson));
+            });
         });
 
     }
