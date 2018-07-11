@@ -61,7 +61,7 @@ public class RulesRestVerticle extends MicroServiceVerticle {
         //// TODO: 4/26/18 other routing logic here
         router.route("/api/rule*").handler(BodyHandler.create());
         router.get("/api/rule").handler(routingContext -> controller.getAll(routingContext));
-        router.get("/api/rule/:id").handler(routingContext -> controller.getOne(routingContext));
+        router.post("/api/rule/sql").handler(routingContext -> controller.getFiloData(routingContext));
 
         // This is last handler that gives not found message
         router.route().last().handler(routingContext -> {
